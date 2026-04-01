@@ -2,8 +2,8 @@ name: 生成视频编号
 
 on:
   schedule:
-    - cron: '*/2 * * * *'  # 每2分钟运行一次
-  workflow_dispatch:  # 也可以手动触发
+    - cron: '*/2 * * * *'
+  workflow_dispatch:
 
 jobs:
   generate:
@@ -22,43 +22,48 @@ jobs:
 
           app_id = os.environ["FEISHU_APP_ID"]
           app_secret = os.environ["FEISHU_APP_SECRET"]
-          spreadsheet_token = os.environ["SPREADSHEET_TOKEN"]
-          sheet_id = os.environ["SHEET_ID"]
 
           # 获取访问令牌
           token_res = requests.post(
               "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
               json={"app_id": app_id, "app_secret": app_secret}
           )
+          print("飞书返回内容:", token_res.json())
+
+          if "tenant_access_token" not in token_res.json():
+              raise Exception("获取token失败，请检查App ID和App Secret")
+
           access_token = token_res.json()["tenant_access_token"]
           headers = {"Authorization": f"Bearer {access_token}"}
 
-          # 读取A列和B列（第2行到第50行）
+          spreadsheet_token = os.environ["SPREADSHEET_TOKEN"]
+          sheet_id = os.environ["SHEET_ID"]
+
           range_str = f"{sheet_id}!A2:B50"
           res = requests.get(
               f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values/{range_str}",
               headers=headers
           )
-          rows = res.json().get("data", {}).get("valueRange", {}).get("values", [])
+          print("读取表格返回:", res.json())
 
-          # 遍历每一行，找B列有内容但A列为空的
+          rows = res.json().get("data", {}).get("valueRange", {}).get("values", [])
           date_str = datetime.datetime.now().strftime("%y%m%d")
+
           for i, row in enumerate(rows):
-              row_num = i + 2  # 实际行号（从第2行开始）
+              row_num = i + 2
               a_val = row[0] if len(row) > 0 else ""
               b_val = row[1] if len(row) > 1 else ""
 
               if b_val and not a_val:
-                  seq = str(i + 1).zfill(2)  # 01, 02, 03...
+                  seq = str(i + 1).zfill(2)
                   video_id = f"V{date_str}{seq}"
-
-                  # 写入A列
                   cell = f"{sheet_id}!A{row_num}"
-                  requests.put(
+                  write_res = requests.put(
                       f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values",
                       headers=headers,
                       json={"valueRange": {"range": cell, "values": [[video_id]]}}
                   )
+                  print(f"写入结果: {write_res.json()}")
                   print(f"已写入 {video_id} 到第{row_num}行")
 
           print("检查完成")
