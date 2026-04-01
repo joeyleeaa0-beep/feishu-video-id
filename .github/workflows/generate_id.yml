@@ -1,0 +1,54 @@
+name: 生成视频编号
+
+on:
+  repository_dispatch:
+    types: [generate_video_id]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 生成编号并写入飞书
+        env:
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          SPREADSHEET_TOKEN: GdAVsqJH1hotUuteTwFcx4pdnoe
+          SHEET_ID: ${{ github.event.client_payload.sheet_id }}
+          ROW_INDEX: ${{ github.event.client_payload.row_index }}
+        run: |
+          pip install requests
+          python3 << 'EOF'
+          import requests, os, datetime
+
+          app_id = os.environ["FEISHU_APP_ID"]
+          app_secret = os.environ["FEISHU_APP_SECRET"]
+          spreadsheet_token = os.environ["SPREADSHEET_TOKEN"]
+          sheet_id = os.environ["SHEET_ID"]
+          row_index = int(os.environ["ROW_INDEX"])
+
+          # 获取访问令牌
+          token_res = requests.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", json={
+              "app_id": app_id,
+              "app_secret": app_secret
+          })
+          access_token = token_res.json()["tenant_access_token"]
+
+          # 生成编号：V + YYMMDD + 两位行号
+          date_str = datetime.datetime.now().strftime("%y%m%d")
+          seq = str(row_index - 1).zfill(2)  # 第2行=01
+          video_id = f"V{date_str}{seq}"
+
+          # 写入A列
+          cell = f"{sheet_id}!A{row_index}"
+          requests.put(
+              f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values",
+              headers={"Authorization": f"Bearer {access_token}"},
+              json={
+                  "valueRange": {
+                      "range": cell,
+                      "values": [[video_id]]
+                  }
+              }
+          )
+          print(f"已写入 {video_id} 到第{row_index}行")
+          EOF
