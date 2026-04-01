@@ -13,7 +13,7 @@ jobs:
           FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
           FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
           SPREADSHEET_TOKEN: GdAVsqJH1hotUuteTwFcx4pdnoe
-          SHEET_ID: ${{ github.event.client_payload.sheet_id }}
+          SHEET_ID: 1YGgZK
           ROW_INDEX: ${{ github.event.client_payload.row_index }}
         run: |
           pip install requests
