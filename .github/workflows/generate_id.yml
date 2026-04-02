@@ -33,32 +33,12 @@ jobs:
           access_token = token_res.json()["tenant_access_token"]
           headers = {"Authorization": f"Bearer {access_token}"}
 
-          # 读取A列和B列
-          range_str = f"{sheet_id}!A2:B50"
-          res = requests.get(
-              f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values/{range_str}",
-              headers=headers
+          # 直接尝试写入A2，看返回什么
+          cell = f"{sheet_id}!A2"
+          write_res = requests.put(
+              f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values",
+              headers=headers,
+              json={"valueRange": {"range": cell, "values": [["TEST123"]]}}
           )
-          rows = res.json().get("data", {}).get("valueRange", {}).get("values", [])
-
-          date_str = datetime.datetime.now().strftime("%y%m%d")
-
-          for i, row in enumerate(rows):
-              row_num = i + 2
-              a_val = row[0] if len(row) > 0 else ""
-              b_val = row[1] if len(row) > 1 else ""
-
-              # A列为空且B列有内容才写入
-              if b_val and not a_val:
-                  seq = str(i + 1).zfill(2)
-                  video_id = f"V{date_str}{seq}"
-                  cell = f"{sheet_id}!A{row_num}"
-                  write_res = requests.put(
-                      f"https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheet_token}/values",
-                      headers=headers,
-                      json={"valueRange": {"range": cell, "values": [[video_id]]}}
-                  )
-                  print(f"已写入 {video_id} 到第{row_num}行")
-
-          print("检查完成")
+          print("写入返回完整结果:", write_res.status_code, write_res.json())
           EOF
